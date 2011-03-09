@@ -3,6 +3,8 @@ package highchair.tests
 import highchair.meta.FilterOps._
 import org.specs._
 
+import com.google.appengine.api.datastore.Text
+
 class EntitySpec extends highchair.specs.DataStoreSpec {
   
   val people = List(
@@ -10,10 +12,16 @@ class EntitySpec extends highchair.specs.DataStoreSpec {
     Person(None, "Chris", Some("Aaron"), "Lewis", 29, new java.util.Date, Nil),
     Person(None, "Garrett", Some("Donald"), "Lewis", 60, new java.util.Date, List("Pop"))
   )
-  
+ 
+  val notes = List(
+    Note(None, "A short note", new Text("Not mush to say")),
+    Note(None, "A long note", new Text("This note can be a meg in size!"))  
+  )
+ 
   doBeforeSpec {
     super.doBeforeSpec()
     people foreach Person.put
+    notes foreach Note.put
   }
   
   "People queries" should {
@@ -54,6 +62,22 @@ class EntitySpec extends highchair.specs.DataStoreSpec {
       } must beEmpty
     }
     
+  }
+
+  "Note queries" should {
+    "find 2 notes" in {
+      Note.find {
+        Note.title in ("A short note", "A long note")
+      }.size must_== 2
+    }
+
+    "find a text property" in {
+      val note = Note.find {
+        Note.title === "A long note"
+      }.head
+
+      note.details.getValue must_== "This note can be a meg in size!"
+    }
   }
   
 }

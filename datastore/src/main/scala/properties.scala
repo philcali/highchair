@@ -1,6 +1,10 @@
 package highchair.meta
 
-import com.google.appengine.api.datastore.{Entity, Key}
+import com.google.appengine.api.datastore.{
+  Entity, 
+  Text,
+  Key
+}
 
 /* A mapping from a Datastore type to a scala type, with methods to get from/set on an Entity. */
 sealed trait Prop[A] {
@@ -36,6 +40,9 @@ class DoubleProp extends PropertyBase(0d)
 class StringProp extends PropertyBase("")
 class DateProp extends PropertyBase(new java.util.Date)
 class KeyProp extends PropertyBase[Key](error("No suitable default value!"))
+
+// Appengine Text datastore type
+class TextProp extends PropertyBase(new Text(""))
 
 /** Property allowing any mapped property A to be mapped to Option[A]. */
 class OptionalProp[A](val wrapped: Prop[A]) extends PropertyBase[Option[A]](None) {
