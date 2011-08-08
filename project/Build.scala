@@ -2,8 +2,9 @@ import sbt._
 import Keys._
 
 object HighchairBuild extends Build {
+
   lazy val root = Project("highchair", file("."), settings = Common.settings)
-    .aggregate(datastore, spec, remote, util)
+    .aggregate(datastore, spec, util)
   lazy val datastore = Project("highchair-datastore", file("datastore"),
     settings = Common.settings ++ Seq(
       name := "Highchair Datastore",
@@ -14,12 +15,15 @@ object HighchairBuild extends Build {
     settings = Common.settings ++
       Seq(
         name := "Highchair Spec",
-        libraryDependencies <++= scalaVersion(v => Seq(Common.specsDep(v)("compile")))
+        libraryDependencies <++= scalaVersion((v : String) => Seq(Common.specsDep(v)("compile")))
       )
   ) dependsOn(util)
   lazy val remote = Project("highchair-remote", file("remote"),
-    settings = Common.settings :+
-      (name := "Highchair Remote")
+    settings = Common.settings ++
+       Seq(
+         name := "Highchair Remote",
+         libraryDependencies <++= scalaVersion((v : String) => Seq(Common.specsDep(v)("compile")))
+       )
   )
   lazy val util = Project("highchair-util", file("util"),
     settings = Common.settings ++ Seq(
@@ -30,21 +34,26 @@ object HighchairBuild extends Build {
 }
 
 object GAE {
-  val gae_version = "1.5.0"
+  val gae_version = "1.5.1"
   val group = "com.google.appengine"
   
-  def artifiact(id: String) = group % id % gae_version % "provided"
+  def artifact(id: String) = group % id % gae_version % "provided"
   
-  val sdk     = artifiact("appengine-api-1.0-sdk")
-  val stubs   = artifiact("appengine-api-stubs")
-  val test    = artifiact("appengine-testing")
-  val labsApi = artifiact("appengine-api-labs")
-  
+  val sdk     = artifact("appengine-api-1.0-sdk")
+  val stubs   = artifact("appengine-api-stubs")
+  val test    = artifact("appengine-testing")
+  val labsApi = artifact("appengine-api-labs")
+ // val remoteApi = artifact("appengine-remote-api")
+
   val dependencies = Seq(sdk, stubs, test, labsApi)
 }
 
 object Common {
-  
+
+  val mavenLocalRepo = new File(Path.userHome+"/.m2/repository")
+
+  val mavenLocalName = "Local Maven Repository"
+
   val dispatch_version = "0.8.1"
   
   def dispatchDep(cfg: String) =
@@ -60,17 +69,22 @@ object Common {
   def specs2Dep(cfg: String) = Seq(
     "org.specs2" %% "specs2" % "1.5" % cfg,
     "org.specs2" %% "specs2-scalaz-core" % "5.1-SNAPSHOT" % cfg)
-  
+
   val settings = Defaults.defaultSettings ++ Seq(
+
     organization := "net.thegodcode",
     name := "Highchair",
     version := "0.0.5-SNAPSHOT",
-    scalaVersion := "2.8.1",
+    scalaVersion := "2.9.0-1",
     crossScalaVersions := Seq("2.8.1", "2.9.0-1"),
     scalacOptions += "-deprecation",
-    libraryDependencies <<= scalaVersion(v => GAE.dependencies ++ specs2Dep("test") :+ specsDep(v)("test")),
+    libraryDependencies <<= scalaVersion((v : String) => GAE.dependencies ++ specs2Dep("test") :+ specsDep(v)("test")),
     parallelExecution in Test := false,
     resolvers := Seq(ScalaToolsSnapshots),
+    otherResolvers := Seq(Resolver.file(mavenLocalName, mavenLocalRepo)),
+    publishLocalConfiguration <<= (packagedArtifacts, deliverLocal, ivyLoggingLevel) map {
+      (arts, _, level) => new PublishConfiguration(None,mavenLocalName,arts,level )
+    },
     publishTo <<= (version) { version: String =>
       val nexus = "http://nexus.scala-tools.org/content/repositories/"
       if (version.trim.endsWith("SNAPSHOT"))
